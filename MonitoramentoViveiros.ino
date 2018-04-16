@@ -88,6 +88,8 @@ const int COIL_1 = 1;
 
 
 volatile int pulsos_vazao = 0;
+float vazao = 0;
+
 
 // Declarando variáveis
 // Porta do sensor de humidade de solo 1
@@ -102,8 +104,8 @@ portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
 
 void IRAM_ATTR onTimer(){
   // Increment the counter and set the time of ISR
-  portENTER_CRITICAL_ISR(&timerMux);
-  portEXIT_CRITICAL_ISR(&timerMux);
+  //portENTER_CRITICAL_ISR(&timerMux);
+  //portEXIT_CRITICAL_ISR(&timerMux);
 
   // Give a semaphore that we can check in the loop
   xSemaphoreGiveFromISR(timerSemaphore, NULL);
@@ -203,25 +205,38 @@ void setup() {
 void loop() {
   //Call once inside loop() - all magic here
    mb.task();
-    digitalWrite(porta_bomba_0, mb.Coil(COIL_0));
-     digitalWrite(porta_bomba_1, mb.Coil(COIL_1));
-
+   digitalWrite(porta_bomba_0, mb.Coil(COIL_0));
+   digitalWrite(porta_bomba_1, mb.Coil(COIL_1));
+   
   // semáforo foi disparado pelo Hardware timer
   if (xSemaphoreTake(timerSemaphore, 0) == pdTRUE){
+     word registro[2];
+    // passou 10 s zera a quantidade de pulsos
+    // atenção se mudar valor de atualização de dados mudar aqui também, segundo o site lab de garagem
+    // tem de dividir um segundo por 5.5, como estamos com taxa de atualização de 10 segundos dividimos por 55
+      vazao = pulsos_vazao/55;
 
-    float h = dht.readHumidity();
-      word registro_humidade[2];
-      floatToWordArray(h, registro_humidade);
-      mb.Ireg(SENSOR_HUMIDADE_0, registro_humidade[0]);
-      mb.Ireg(SENSOR_HUMIDADE_1, registro_humidade[1]);
+      floatToWordArray(vazao, registro);
+
+       mb.Ireg(SENSOR_VAZAO_1, registro[0]);
+       mb.Ireg(SENSOR_VAZAO_2, registro[1]);
+
+
+      pulsos_vazao = 0;
+
+      float h = dht.readHumidity();
+     
+      floatToWordArray(h, registro);
+      mb.Ireg(SENSOR_HUMIDADE_0, registro[0]);
+      mb.Ireg(SENSOR_HUMIDADE_1, registro[1]);
       // Read temperature as Celsius (the default)
       float t = dht.readTemperature();
-      word registro_temperatura[2];
-      floatToWordArray(h, registro_temperatura);
+    
+      floatToWordArray(h, registro);
 
-      mb.Ireg(SENSOR_TEMPERATURA_DHT_0, registro_temperatura[0]);
-      mb.Ireg(SENSOR_TEMPERATURA_DHT_0, registro_temperatura[1]);
-      word registro[2];
+      mb.Ireg(SENSOR_TEMPERATURA_DHT_0, registro[0]);
+      mb.Ireg(SENSOR_TEMPERATURA_DHT_0, registro[1]);
+      
 
       // Leitura dos dois pt100
      float pt100_0 = analogRead(porta_temperatura_pt100_0);
@@ -241,29 +256,27 @@ void loop() {
      // Leitura dos dois sensores PH
      float ph_0 = analogRead(porta_ph_0);
 
-      floatToWordArray(pt100_0, registro);
+      floatToWordArray(porta_ph_0, registro);
 
       mb.Ireg(SENSOR_PH_0_0, registro[0]);
       mb.Ireg(SENSOR_PH_0_1, registro[1]);
 
 
      float ph_1 = analogRead(porta_ph_1);
-     floatToWordArray(pt100_0, registro);
+     floatToWordArray(porta_ph_1, registro);
 
       mb.Ireg(SENSOR_PH_1_0, registro[0]);
       mb.Ireg(SENSOR_PH_1_1, registro[1]);
 
       // Leitura dos sensor de Chuva
-     int chuva = analogRead(porta_chuva);
+      int chuva = analogRead(porta_chuva);
       mb.Ireg(SENSOR_RAIN, chuva);
 
+// Valor distance_1 está na tarefa
+      floatToWordArray(distance_1, registro);
 
-
-
-
-
-
-      pulsos_vazao = 0;
+       mb.Ireg(SENSOR_DISTANCE_0_0, registro[0]);
+       mb.Ireg(SENSOR_DISTANCE_0_1, registro[1]);
 
 
   }
